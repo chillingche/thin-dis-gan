@@ -37,7 +37,7 @@ class Discriminator(nn.Module):
         return output.view(-1, 1).squeeze(1)
 
 
-class Generator(nn.Module):
+class PixelShuffleGenerator(nn.Module):
     nz = 100
     ngf = 128
     nc = 3
@@ -54,6 +54,38 @@ class Generator(nn.Module):
             nn.InstanceNorm2d(self.nc * 4, affine=True),
             nn.Tanh(),
             nn.PixelShuffle(2)  # 3, 32, 32
+        )
+
+    def forward(self, input):
+        if input.is_cuda and self.ngpu != 1:
+            output = parallel.data_parallel(self.main, input, range(self.ngpu))
+        else:
+            output = self.main(input)
+        return output
+
+class Generator(nn.Module):
+    nz = 100
+    ngf = 128
+    nc = 3
+
+    def __init__(self, ngpu):
+        super().__init__()
+        self.ngpu = ngpu
+        self.main = nn.Sequential(
+            nn.ConvTranspose2d(self.nz, self.ngf*4, 4, 1, 0, bias=False), # 512, 4, 4
+            nn.BatchNorm2d(self.ngf*4),
+            nn.ReLU(True),
+
+            nn.ConvTranspose2d(self.ngf*4, self.ngf*2, 4, 2, 1, bias=False), # 256, 8, 8
+            nn.BatchNorm2d(self.ngf*2),
+            nn.ReLU(True),
+
+            nn.ConvTranspose2d(self.ngf*2, self.ngf, 4, 2, 1, bias=False), # 128, 16, 16
+            nn.BatchNorm2d(self.ngf),
+            nn.ReLU(True),
+
+            nn.ConvTranspose2d(self.ngf, self.nc, 4, 2, 1, bias=False), # 3, 32, 32
+            nn.Tanh()
         )
 
     def forward(self, input):
