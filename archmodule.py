@@ -78,6 +78,9 @@ class PixelShuffleC2D(nn.Module):
 
     def forward(self, x):
         y = self.ref(x)
-        y = self.relu(self.ins(self.conv(y)))
+        y = self.conv(y)
+        if y.size(-1) != 0:
+            y = self.ins(y)
+        y = self.relu(y)
         y = self.ps(y)
         return y
