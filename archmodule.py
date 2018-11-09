@@ -43,9 +43,9 @@ class Generator(nn.Module):
         super().__init__()
         self.ngpu = ngpu
         self.main = nn.Sequential(
-            PixelShuffleConv(self.nz, self.ngf*4, 1, 4, 0), # 512, 4, 4
-            PixelShuffleConv(self.ngf*4, self.ngf*2, 3, 2, 1), # 256, 8, 8
-            PixelShuffleConv(self.ngf*2, self.ngf, 3, 2, 1), # 128, 16, 16
+            PixelShuffleC2D(self.nz, self.ngf*4, 1, 4, 0), # 512, 4, 4
+            PixelShuffleC2D(self.ngf*4, self.ngf*2, 3, 2, 1), # 256, 8, 8
+            PixelShuffleC2D(self.ngf*2, self.ngf, 3, 2, 1), # 128, 16, 16
             nn.ReflectionPad2d(1),
             nn.Conv2d(self.ngf, self.nc*4, kernel_size=3, bias=True),
             nn.InstanceNorm2d(self.nc*4, affine=True),
@@ -61,7 +61,7 @@ class Generator(nn.Module):
             output = self.main(input)
         return output
 
-class PixelShuffleConv(nn.Module):
+class PixelShuffleC2D(nn.Module):
     """ Deconv2d for high resolution AE
     """
 
