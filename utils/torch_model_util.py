@@ -92,29 +92,29 @@ else:
         return torch.no_grad()
 
 
-def weight_init(model):
+def weight_init(m):
     '''
     initialize conv and bn layers
     '''
-    # classname = m.__class__.__name__
-    # if classname.find('Conv') != -1:
-    #     m.weight.data.normal_(0.0, 0.02)
-    # elif classname.find('BatchNorm') != -1:
-    #     m.weight.data.normal_(1.0, 0.02)
-    #     m.bias.data.fill_(0.0)
-    if isinstance(model, nn.Module):
-        for m in model.modules():
-            if isinstance(m, nn.Conv2d):
-                kaiming_normal(m.weight)
-                if m.bias is not None:
-                    init_constant(m.bias, 0)
-            elif isinstance(m, nn.BatchNorm2d):
-                init_normal(m.weight, 1.0, 0.02)
-                if m.bias is not None:
-                    init_constant(m.bias, 0)
-            elif isinstance(m, nn.Linear):
-                init_normal(m.weight, 0, 0.01)
-                init_constant(m.bias, 0)
+    classname = m.__class__.__name__
+    if classname.find('Conv') != -1:
+        m.weight.data.normal_(0.0, 0.02)
+    elif classname.find('BatchNorm') != -1:
+        m.weight.data.normal_(1.0, 0.02)
+        m.bias.data.fill_(0.0)
+    # if isinstance(model, nn.Module):
+    #     for m in model.modules():
+    #         if isinstance(m, nn.Conv2d):
+    #             kaiming_normal(m.weight)
+    #             if m.bias is not None:
+    #                 init_constant(m.bias, 0)
+    #         elif isinstance(m, nn.BatchNorm2d):
+    #             init_normal(m.weight, 1.0, 0.02)
+    #             if m.bias is not None:
+    #                 init_constant(m.bias, 0)
+    #         elif isinstance(m, nn.Linear):
+    #             init_normal(m.weight, 0, 0.01)
+    #             init_constant(m.bias, 0)
 
 
 def load_pretrained_param(net, state_dict_path, cuda=True):

@@ -43,7 +43,7 @@ class Cifar10Data(torchdata.Dataset):
         train_images, test_images, train_labels, test_labels = (list(), list(),
                                                                 list(), list())
         if self.datasource in {"train", "all"}:
-            for fentry in train_list:
+            for fentry in self.train_list:
                 fname = fentry[0]
                 fpath = os.path.join(self.root, self.base_folder, fname)
                 with open(fpath, "rb") as f:
@@ -54,7 +54,7 @@ class Cifar10Data(torchdata.Dataset):
                     else:
                         train_labels.append(entry["fine_labels"])
         if self.datasource in {"test", "all"}:
-            fname = test_list[0][0]
+            fname = self.test_list[0][0]
             fpath = os.path.join(self.root, self.base_folder, fname)
             with open(fpath, "rb") as f:
                 entry = pickle.load(f, encoding="latin1")
@@ -76,9 +76,9 @@ class Cifar10Data(torchdata.Dataset):
     def get_image(self, index):
         image = self.images[index]
         image_tf = transforms.Compose([
-            transforms.Resize((32, 32)),
+            # transforms.Resize((32, 32)),
             transforms.ToTensor(),
-            transforms.Normalize(mean, std)
+            transforms.Normalize(self.mean, self.std)
         ])
         return image_tf(image)
 
