@@ -50,9 +50,9 @@ class Cifar10Data(torchdata.Dataset):
                     entry = pickle.load(f, encoding="latin1")
                     train_images.append(entry["data"])
                     if "labels" in entry:
-                        train_labels.append(entry["labels"])
+                        train_labels.extend(entry["labels"])
                     else:
-                        train_labels.append(entry["fine_labels"])
+                        train_labels.extend(entry["fine_labels"])
         if self.datasource in {"test", "all"}:
             fname = self.test_list[0][0]
             fpath = os.path.join(self.root, self.base_folder, fname)
@@ -60,9 +60,9 @@ class Cifar10Data(torchdata.Dataset):
                 entry = pickle.load(f, encoding="latin1")
                 test_images.append(entry["data"])
                 if "labels" in entry:
-                    test_labels.append(entry["labels"])
+                    test_labels.extend(entry["labels"])
                 else:
-                    test_labels.append(entry["fine_labels"])
+                    test_labels.extend(entry["fine_labels"])
         for data in [train_images, test_images]:
             if len(data) != 0:
                 self.images.extend(data)
