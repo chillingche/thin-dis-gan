@@ -26,8 +26,9 @@ class Discriminator(nn.Module):
                       bias=False),  # 512, 4, 4
             nn.BatchNorm2d(4 * self.ndf),
             nn.LeakyReLU(0.2, True),
-            nn.Conv2d(4 * self.ndf, 1, 4, 1, 0, bias=False),
-            nn.Sigmoid())
+            nn.Conv2d(4 * self.ndf, 1, 4, 1, 0, bias=False)
+            # nn.Sigmoid()
+            )
 
     def forward(self, input):
         if input.is_cuda and self.ngpu != 1:
