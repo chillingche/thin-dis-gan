@@ -10,13 +10,7 @@ class Discriminator(nn.Module):
         super().__init__()
         self.ngpu = ngpu
         self.main = nn.Sequential(
-            nn.Conv2d(
-                in_channels=3,
-                out_channels=self.ndf,
-                kernel_size=4,
-                stride=2,
-                padding=1,
-                bias=False),  # 128, 16, 16
+            nn.Conv2d(3, self.ndf, 4, 2, 1, bias=False),  # 128, 16, 16
             nn.LeakyReLU(0.2, True),
             nn.Conv2d(self.ndf, 2 * self.ndf, 4, 2, 1,
                       bias=False),  # 256, 8, 8
@@ -28,7 +22,7 @@ class Discriminator(nn.Module):
             nn.LeakyReLU(0.2, True),
             nn.Conv2d(4 * self.ndf, 1, 4, 1, 0, bias=False)
             # nn.Sigmoid()
-            )
+        )
 
     def forward(self, input):
         if input.is_cuda and self.ngpu != 1:
@@ -64,6 +58,7 @@ class PixelShuffleGenerator(nn.Module):
             output = self.main(input)
         return output
 
+
 class Generator(nn.Module):
     nz = 100
     ngf = 128
@@ -73,20 +68,49 @@ class Generator(nn.Module):
         super().__init__()
         self.ngpu = ngpu
         self.main = nn.Sequential(
-            nn.ConvTranspose2d(self.nz, self.ngf*4, 4, 1, 0, bias=False), # 512, 4, 4
-            nn.BatchNorm2d(self.ngf*4),
+            nn.ConvTranspose2d(self.nz, self.ngf * 4, 4, 1, 0,
+                               bias=False),  # 512, 4, 4
+            nn.BatchNorm2d(self.ngf * 4),
             nn.ReLU(True),
-
-            nn.ConvTranspose2d(self.ngf*4, self.ngf*2, 4, 2, 1, bias=False), # 256, 8, 8
-            nn.BatchNorm2d(self.ngf*2),
+            nn.ConvTranspose2d(
+                self.ngf * 4, self.ngf * 2, 4, 2, 1, bias=False),  # 256, 8, 8
+            nn.BatchNorm2d(self.ngf * 2),
             nn.ReLU(True),
-
-            nn.ConvTranspose2d(self.ngf*2, self.ngf, 4, 2, 1, bias=False), # 128, 16, 16
+            nn.ConvTranspose2d(self.ngf * 2, self.ngf, 4, 2, 1,
+                               bias=False),  # 128, 16, 16
             nn.BatchNorm2d(self.ngf),
             nn.ReLU(True),
+            nn.ConvTranspose2d(self.ngf, self.nc, 4, 2, 1,
+                               bias=False),  # 3, 32, 32
+            nn.Tanh())
 
-            nn.ConvTranspose2d(self.ngf, self.nc, 4, 2, 1, bias=False), # 3, 32, 32
-            nn.Tanh()
+    def forward(self, input):
+        if input.is_cuda and self.ngpu != 1:
+            output = parallel.data_parallel(self.main, input, range(self.ngpu))
+        else:
+            output = self.main(input)
+        return output
+
+
+class SketchDiscriminator(nn.Module):
+    ndf = 128
+
+    def __init__(self, ngpu):
+        super().__init__()
+        self.ngpu = ngpu
+        self.main = nn.Sequential(
+            nn.Conv2d(1, self.ndf, 4, 2, 1, bias=False),  # 128, 16, 16
+            nn.LeakyReLU(0.2, True),
+            nn.Conv2d(self.ndf, 2 * self.ndf, 4, 2, 1,
+                      bias=False),  # 256, 8, 8
+            nn.BatchNorm2d(2 * self.ndf),
+            nn.LeakyReLU(0.2, True),
+            nn.Conv2d(2 * self.ndf, 4 * self.ndf, 4, 2, 1,
+                      bias=False),  # 512, 4, 4
+            nn.BatchNorm2d(4 * self.ndf),
+            nn.LeakyReLU(0.2, True),
+            nn.Conv2d(4 * self.ndf, 1, 4, 1, 0, bias=False)
+            # nn.Sigmoid()
         )
 
     def forward(self, input):
@@ -94,6 +118,111 @@ class Generator(nn.Module):
             output = parallel.data_parallel(self.main, input, range(self.ngpu))
         else:
             output = self.main(input)
+        return output.view(-1, 1).squeeze(1)
+
+
+class SKetchGenerator(nn.Module):
+    nz = 100
+    ngf = 128
+    nc = 1
+
+    def __init__(self, ngpu):
+        super().__init__()
+        self.ngpu = ngpu
+        self.main = nn.Sequential(
+            nn.ConvTranspose2d(self.nz, self.ngf * 4, 4, 1, 0,
+                               bias=False),  # 512, 4, 4
+            nn.BatchNorm2d(self.ngf * 4),
+            nn.ReLU(True),
+            nn.ConvTranspose2d(
+                self.ngf * 4, self.ngf * 2, 4, 2, 1, bias=False),  # 256, 8, 8
+            nn.BatchNorm2d(self.ngf * 2),
+            nn.ReLU(True),
+            nn.ConvTranspose2d(self.ngf * 2, self.ngf, 4, 2, 1,
+                               bias=False),  # 128, 16, 16
+            nn.BatchNorm2d(self.ngf),
+            nn.ReLU(True),
+            nn.ConvTranspose2d(self.ngf, self.nc, 4, 2, 1,
+                               bias=False),  # 3, 32, 32
+            nn.Tanh())
+
+    def forward(self, input):
+        if input.is_cuda and self.ngpu != 1:
+            output = parallel.data_parallel(self.main, input, range(self.ngpu))
+        else:
+            output = self.main(input)
+        return output
+
+
+class PhotoDiscriminator(nn.Module):
+    ndf = 128
+
+    def __init__(self, ngpu):
+        super().__init__()
+        self.ngpu = ngpu
+        self.main = nn.Sequential(
+            nn.Conv2d(3, self.ndf, 4, 2, 1, bias=False),  # 128, 16, 16
+            nn.LeakyReLU(0.2, True),
+            nn.Conv2d(self.ndf, 2 * self.ndf, 4, 2, 1,
+                      bias=False),  # 256, 8, 8
+            nn.BatchNorm2d(2 * self.ndf),
+            nn.LeakyReLU(0.2, True),
+            nn.Conv2d(2 * self.ndf, 4 * self.ndf, 4, 2, 1,
+                      bias=False),  # 512, 4, 4
+            nn.BatchNorm2d(4 * self.ndf),
+            nn.LeakyReLU(0.2, True),
+            nn.Conv2d(4 * self.ndf, 1, 4, 1, 0, bias=False)
+            # nn.Sigmoid()
+        )
+
+    def forward(self, input):
+        if input.is_cuda and self.ngpu != 1:
+            output = parallel.data_parallel(self.main, input, range(self.ngpu))
+        else:
+            output = self.main(input)
+        return output.view(-1, 1).squeeze(1)
+
+
+class PhotoGenerator(nn.Module):
+    nz = 100
+    ngf = 128
+    nc = 3
+
+    def __init__(self, ngpu):
+        super().__init__()
+        self.ngpu = ngpu
+        self.main = nn.Sequential(
+            nn.Conv2d(self.nz + 1, self.ngf, 4, 2, 1,
+                      bias=False),  # 128, 16, 16
+            nn.LeakyReLU(0.2, True),
+            nn.Conv2d(self.ngf, 2 * self.ngf, 4, 2, 1,
+                      bias=False),  # 256, 8, 8
+            nn.BatchNorm2d(2 * self.ngf),
+            nn.LeakyReLU(0.2, True),
+            nn.Conv2d(2 * self.ngf, 4 * self.ngf, 4, 2, 1,
+                      bias=False),  # 512, 4, 4
+            nn.BatchNorm2d(4 * self.ngf),
+            nn.LeakyReLU(0.2, True),
+            nn.ConvTranspose2d(
+                self.ngf * 4, self.ngf * 2, 4, 2, 1, bias=False),  # 256, 8, 8
+            nn.BatchNorm2d(self.ngf * 2),
+            nn.ReLU(True),
+            nn.ConvTranspose2d(self.ngf * 2, self.ngf, 4, 2, 1,
+                               bias=False),  # 128, 16, 16
+            nn.BatchNorm2d(self.ngf),
+            nn.ReLU(True),
+            nn.ConvTranspose2d(self.ngf, self.nc, 4, 2, 1,
+                               bias=False),  # 3, 32, 32
+            nn.Tanh())
+
+    def forward(self, input, z):
+        z_img = z.expand(z.size(0), z.size(1), input.size(2), input.size(3))
+        input_with_z = torch.cat([input, z_img], 1)
+        if input.is_cuda and self.ngpu != 1:
+            output = parallel.data_parallel(self.main, input_with_z,
+                                            range(self.ngpu))
+        else:
+            output = self.main(input_with_z)
         return output
 
 
