@@ -6,7 +6,7 @@ import torch.backends.cudnn as cudnn
 import torch.optim as optim
 import torchvision.utils as tvutils
 import thindidata
-import archmodule as arch
+import thindiarch as arch
 import utils
 
 parser = argparse.ArgumentParser()

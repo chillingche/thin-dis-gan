@@ -102,9 +102,11 @@ class ThindiCifar10Data(Cifar10Data):
     def sketch(self, index):
         image = self.images[index]  # HWC
         gray_image = cv2.blur(cv2.cvtColor(image, cv2.COLOR_RGB2GRAY), (3, 3))
-        high_th = otsu(gray_image)
+        # high_th = otsu(gray_image)
+        high_th = 175.0
         edge_image = cv2.Canny(
             gray_image, 0.5 * high_th, high_th, L2gradient=True)
+        # cv2.imwrite("%s.jpg"%str(high_th), np.concatenate([image, np.repeat(edge_image[:,:, None], 3, axis=2)], axis=1))
         return edge_image
 
 
