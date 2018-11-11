@@ -123,18 +123,22 @@ def get_dataloader(dataset,
         pin_memory=pin_memory)
 
 
-def otsu(gray_img):
-    hist = cv2.calcHist([gray_img], [0], None, [256], [0.0, 256.0])
-    hist = hist.reshape(256)
-    p_hist = hist / np.sum(hist)
-    gray_lvl = np.arange(256)
-    sigma_b = np.zeros(256)
-    for t in gray_lvl:
-        q_L = sum(p_hist[:t + 1])
-        q_H = sum(p_hist[t + 1:])
-        if not (q_L == 0 or q_H == 0):
-            miu_L = p_hist[:t + 1].dot(gray_lvl[:t + 1]) / q_L
-            miu_H = p_hist[t + 1:].dot(gray_lvl[t + 1:]) / q_H
-            sigma_b[t] = q_L * q_H * (miu_L - miu_H)**2
-    th_otsu = np.argmax(sigma_b)
-    return th_otsu
+def otsu(gray_image):
+    otsu_ret_val, otsu_img = cv2.threshold(gray_image, 0, 255, cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+    return otsu_ret_val
+
+# def otsu(gray_img):
+#     hist = cv2.calcHist([gray_img], [0], None, [256], [0.0, 256.0])
+#     hist = hist.reshape(256)
+#     p_hist = hist / np.sum(hist)
+#     gray_lvl = np.arange(256)
+#     sigma_b = np.zeros(256)
+#     for t in gray_lvl:
+#         q_L = sum(p_hist[:t + 1])
+#         q_H = sum(p_hist[t + 1:])
+#         if not (q_L == 0 or q_H == 0):
+#             miu_L = p_hist[:t + 1].dot(gray_lvl[:t + 1]) / q_L
+#             miu_H = p_hist[t + 1:].dot(gray_lvl[t + 1:]) / q_H
+#             sigma_b[t] = q_L * q_H * (miu_L - miu_H)**2
+#     th_otsu = np.argmax(sigma_b)
+#     return th_otsu
