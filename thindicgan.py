@@ -69,9 +69,9 @@ fixed_noise = torch.randn(opt.batch_size, opt.nz, 1, 1, device=device)
 real_label = 1
 fake_label = 0
 
-optimSD = optim.Adam(netSD.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
+optimSD = optim.Adam(netSD.parameters(), lr=4*opt.lr, betas=(opt.beta1, 0.999))
 optimSG = optim.Adam(netSG.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
-optimPD = optim.Adam(netPD.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
+optimPD = optim.Adam(netPD.parameters(), lr=4*opt.lr, betas=(opt.beta1, 0.999))
 params = list()
 for param in netSG.parameters():
     params.append(param)
