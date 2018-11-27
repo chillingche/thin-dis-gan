@@ -102,7 +102,7 @@ class CSKetchGenerator(nn.Module):
             y_onehot = torch.zeros([y.size(0), self.nclass, 1, 1], device=torch.device("cuda"))
         else:
             y_onehot = torch.zeros([y.size(0), self.nclass, 1, 1], device=torch.device("cpu"))
-        y_onehot[torch.arange(y.size(0)), y] = 1
+        y_onehot[torch.arange(y.size(0)), y.long()] = 1
         input_with_y = torch.cat([y_onehot, input], 1)
         if input.is_cuda and self.ngpu != 1:
             output = parallel.data_parallel(self.main, input_with_y, range(self.ngpu))
@@ -182,7 +182,7 @@ class CPhotoGenerator(nn.Module):
             y_onehot = torch.zeros([y.size(0), self.nclass, 1, 1], device=torch.device("cuda"))
         else:
             y_onehot = torch.zeros([y.size(0), self.nclass, 1, 1], device=torch.device("cpu"))
-        y_onehot[torch.arange(y.size(0)), y] = 1
+        y_onehot[torch.arange(y.size(0)), y.long()] = 1
         z = torch.cat([y_onehot, z], 1)
         z_img = z.expand(z.size(0), z.size(1), input.size(2), input.size(3))
         input_with_z = torch.cat([input, z_img], 1)

@@ -1,4 +1,5 @@
 import os
+import os.path
 import argparse
 import torch
 import torch.nn as nn
@@ -10,7 +11,7 @@ import thindiarch as arch
 import utils
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--root", default="/data/dataset/cifar", help="path to dataset")
+parser.add_argument("--root", default="~/data/cifar", help="path to dataset")
 parser.add_argument(
     "--batch-size", type=int, default=128, help="input batch size")
 parser.add_argument(
@@ -28,11 +29,11 @@ parser.add_argument("--netG", default="", help="path to netG state dict")
 parser.add_argument("--netD", default="", help="path to netD state dict")
 parser.add_argument(
     "--ckpt-d",
-    default="../output.d/thindi-gan/ckpt.d",
+    default="~/.local/output.d/thindi-gan/ckpt.d",
     help="directory to checkpoint")
 parser.add_argument(
     "--eval-d",
-    default="../output.d/thindi-gan/eval.d",
+    default="~/.local/output.d/thindi-gan/eval.d",
     help="directory to output")
 opt = parser.parse_args()
 try:
@@ -48,7 +49,7 @@ dataloader = thindidata.get_dataloader(
     opt.root,
     "all",
     opt.batch_size,
-    num_workers=16)
+    num_workers=8)
 device = torch.device("cuda" if en_cuda else "cpu")
 ngpu = opt.ngpu
 netSD = arch.SketchDiscriminator(ngpu).to(device)
