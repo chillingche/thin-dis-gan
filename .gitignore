@@ -105,3 +105,9 @@ venv.bak/
 
 # vscode
 .vscode/
+~/
+output.d/
+ckpt.d/
+eval.d/
+checkpoint/
+eval/
