@@ -9,9 +9,10 @@ import thindidata
 import thindiarch as arch
 import thindicarch as carch
 import utils
+import config
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--root", default="/data/dataset/cifar", help="path to dataset")
+parser.add_argument("--root", default=config.ROOT, help="path to dataset")
 parser.add_argument(
     "--batch-size", type=int, default=128, help="input batch size")
 parser.add_argument(
@@ -29,11 +30,11 @@ parser.add_argument("--netG", default="", help="path to netG state dict")
 parser.add_argument("--netD", default="", help="path to netD state dict")
 parser.add_argument(
     "--ckpt-d",
-    default="../output.d/thindi-gan/ckpt.d",
+    default=config.CKPT,
     help="directory to checkpoint")
 parser.add_argument(
     "--eval-d",
-    default="../output.d/thindi-gan/eval.d",
+    default=config.EVAL,
     help="directory to output")
 opt = parser.parse_args()
 try:
@@ -90,14 +91,14 @@ for epoch in range(opt.niter):
         c_out, d_out = netSD(real_sk)
 
         # errD_real = 0.5*criterion(output, label)
-        errSD_real = arch.HingleAdvLoss.get_d_real_loss(d_out) + crossentropy(c_out, label)
+        errSD_real = arch.HingeAdvLoss.get_d_real_loss(d_out) + crossentropy(c_out, label)
         errSD_real.backward()
         # SD_x = output.mean().item()
 
         netPD.zero_grad()
         real_ph = image.to(device)
         c_out, d_out = netPD(real_ph)
-        errD_real = arch.HingleAdvLoss.get_d_real_loss(d_out) + crossentropy(c_out, label)
+        errD_real = arch.HingeAdvLoss.get_d_real_loss(d_out) + crossentropy(c_out, label)
         errD_real.backward()
         D_x = d_out.mean().item()
 
@@ -106,7 +107,7 @@ for epoch in range(opt.niter):
         # label.fill_(fake_label)
         c_out, d_out = netSD(fake_sk.detach())
         # errD_fake = 0.5*criterion(output, label)
-        errSD_fake = arch.HingleAdvLoss.get_d_fake_loss(d_out) + crossentropy(c_out, label)
+        errSD_fake = arch.HingeAdvLoss.get_d_fake_loss(d_out) + crossentropy(c_out, label)
         errSD_fake.backward()
         # D_G_z1 = output.mean().item()
         # errD = errSD_real + errSD_fake
@@ -114,7 +115,7 @@ for epoch in range(opt.niter):
 
         fake_ph = netPG(fake_sk, noise, label)
         c_out, d_out = netPD(fake_ph.detach())
-        errD_fake = arch.HingleAdvLoss.get_d_fake_loss(d_out) + crossentropy(c_out, label)
+        errD_fake = arch.HingeAdvLoss.get_d_fake_loss(d_out) + crossentropy(c_out, label)
         errD_fake.backward()
         D_G_z1 = d_out.mean().item()
         errD = errD_real + errD_fake
@@ -124,14 +125,14 @@ for epoch in range(opt.niter):
         # label.fill_(real_label)
         c_out, d_out = netSD(fake_sk)
         # errG = 0.5*criterion(output, label)
-        errSG = arch.HingleAdvLoss.get_g_loss(d_out) + crossentropy(c_out, label)
+        errSG = arch.HingeAdvLoss.get_g_loss(d_out) + crossentropy(c_out, label)
         errSG.backward(retain_graph=True)
         # D_G_z2 = output.mean().item()
         optimSG.step()
 
         netPG.zero_grad()
         c_out, d_out = netPD(fake_ph)
-        errG = arch.HingleAdvLoss.get_g_loss(d_out) + crossentropy(c_out, label)
+        errG = arch.HingeAdvLoss.get_g_loss(d_out) + crossentropy(c_out, label)
         errG.backward()
         D_G_z2 = d_out.mean().item()
         optimPG.step()

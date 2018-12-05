@@ -1,4 +1,5 @@
 import os
+import os.path
 import argparse
 import torch
 import torch.nn as nn
@@ -28,9 +29,13 @@ parser.add_argument(
 parser.add_argument("--netG", default="", help="path to netG state dict")
 parser.add_argument("--netD", default="", help="path to netD state dict")
 parser.add_argument(
-    "--ckpt-d", default=config.CKPT, help="directory to checkpoint")
+    "--ckpt-d",
+    default=config.CKPT,
+    help="directory to checkpoint")
 parser.add_argument(
-    "--eval-d", default=config.EVAL, help="directory to output")
+    "--eval-d",
+    default=config.EVAL,
+    help="directory to output")
 opt = parser.parse_args()
 try:
     os.makedirs(opt.ckpt_d)
@@ -46,11 +51,7 @@ dataloader = thindidata.get_dataloader(
     "all",
     opt.batch_size,
     num_workers=8)
-
 device = torch.device("cuda" if en_cuda else "cpu")
-if opt.ngpu == 1:
-    torch.cuda.set_device(1)
-
 ngpu = opt.ngpu
 netSD = arch.SketchDiscriminator(ngpu).to(device)
 netPD = arch.PhotoDiscriminator(ngpu).to(device)
@@ -64,7 +65,6 @@ if opt.netG != "":
     netSG.load_state_dict(torch.load(opt.netG))
 if opt.netD != "":
     netSD.load_state_dict(torch.load(opt.netD))
-# criterion = nn.MSELoss()
 fixed_noise = torch.randn(opt.batch_size, opt.nz, 1, 1, device=device)
 real_label = 1
 fake_label = 0
@@ -72,12 +72,12 @@ fake_label = 0
 optimSD = optim.Adam(netSD.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
 optimSG = optim.Adam(netSG.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
 optimPD = optim.Adam(netPD.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
-params = list()
-for param in netSG.parameters():
-    params.append(param)
-for param in netPG.parameters():
-    params.append(param)
-optimPG = optim.Adam(params, lr=opt.lr, betas=(opt.beta1, 0.999))
+# params = list()
+# for param in netSG.parameters():
+#     params.append(param)
+# for param in netPG.parameters():
+#     params.append(param)
+optimPG = optim.Adam(netPG.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
 
 for epoch in range(opt.niter):
     for i, data in enumerate(dataloader, 0):

@@ -251,7 +251,7 @@ class PixelShuffleC2D(nn.Module):
         return y
 
 
-class HingleAdvLoss(object):
+class HingeAdvLoss(object):
     @staticmethod
     def get_d_real_loss(d_on_real_logits):
         loss = nn.functional.relu(1 - d_on_real_logits)

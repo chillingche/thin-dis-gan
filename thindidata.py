@@ -7,6 +7,7 @@ import torchvision
 from torchvision.datasets import CIFAR10
 import torch.utils.data as torchdata
 import torchvision.transforms as transforms
+import config
 
 
 class Cifar10Data(torchdata.Dataset):
@@ -103,9 +104,10 @@ class ThindiCifar10Data(Cifar10Data):
         image = self.images[index]  # HWC
         gray_image = cv2.blur(cv2.cvtColor(image, cv2.COLOR_RGB2GRAY), (3, 3))
         # high_th = otsu(gray_image)
-        high_th = 175.0
+        # TODO: 200.0 0.1
+        high_th = config.HIGHTH
         edge_image = cv2.Canny(
-            gray_image, 0.5 * high_th, high_th, L2gradient=True)
+            gray_image, config.COELOWTH * high_th, high_th, L2gradient=True)
         # cv2.imwrite("%s.jpg"%str(high_th), np.concatenate([image, np.repeat(edge_image[:,:, None], 3, axis=2)], axis=1))
         return edge_image
 
@@ -126,8 +128,10 @@ def get_dataloader(dataset,
 
 
 def otsu(gray_image):
-    otsu_ret_val, otsu_img = cv2.threshold(gray_image, 0, 255, cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+    otsu_ret_val, otsu_img = cv2.threshold(gray_image, 0, 255,
+                                           cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     return otsu_ret_val
+
 
 # def otsu(gray_img):
 #     hist = cv2.calcHist([gray_img], [0], None, [256], [0.0, 256.0])

@@ -8,9 +8,10 @@ import torchvision.utils as tvutils
 import thindidata
 import thindiarch as arch
 import utils
+import config
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--root", default="/data/cifar", help="path to dataset")
+parser.add_argument("--root", default=config.ROOT, help="path to dataset")
 parser.add_argument(
     "--batch-size", type=int, default=128, help="input batch size")
 parser.add_argument(
@@ -26,8 +27,8 @@ parser.add_argument(
     "--ngpu", type=int, default=2, help="number of gpus to use")
 parser.add_argument("--netG", default="", help="path to netG state dict")
 parser.add_argument("--netD", default="", help="path to netD state dict")
-parser.add_argument("--ckpt-d", default="../output.d/thindi-gan/ckpt.d", help="directory to checkpoint")
-parser.add_argument("--eval-d", default="../output.d/thindi-gan/eval.d", help="directory to output")
+parser.add_argument("--ckpt-d", default=config.CKPT, help="directory to checkpoint")
+parser.add_argument("--eval-d", default=config.EVAL, help="directory to output")
 opt = parser.parse_args()
 try:
     os.makedirs(opt.ckpt_d)
@@ -67,7 +68,7 @@ for epoch in range(opt.niter):
         output = netD(real)
 
         # errD_real = 0.5*criterion(output, label)
-        errD_real = arch.HingleAdvLoss.get_d_real_loss(output)
+        errD_real = arch.HingeAdvLoss.get_d_real_loss(output)
         errD_real.backward()
         D_x = output.mean().item()
 
@@ -76,7 +77,7 @@ for epoch in range(opt.niter):
         label.fill_(fake_label)
         output = netD(fake.detach())
         # errD_fake = 0.5*criterion(output, label)
-        errD_fake = arch.HingleAdvLoss.get_d_fake_loss(output)
+        errD_fake = arch.HingeAdvLoss.get_d_fake_loss(output)
         errD_fake.backward()
         D_G_z1 = output.mean().item()
         errD = errD_real + errD_fake
@@ -86,7 +87,7 @@ for epoch in range(opt.niter):
         label.fill_(real_label)
         output = netD(fake)
         # errG = 0.5*criterion(output, label)
-        errG = arch.HingleAdvLoss.get_g_loss(output)
+        errG = arch.HingeAdvLoss.get_g_loss(output)
         errG.backward()
         D_G_z2 = output.mean().item()
         optimG.step()
