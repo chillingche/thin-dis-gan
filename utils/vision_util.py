@@ -81,8 +81,8 @@ def make_grid(tensor,
     nmaps = tensor.size(0)
     xmaps = min(nrow, nmaps)
     ymaps = int(math.ceil(float(nmaps) / xmaps))
-    height, width = int(tensor.size(2) + padding), int(
-        tensor.size(3) + padding)
+    height, width = int(tensor.size(2) +
+                        padding), int(tensor.size(3) + padding)
     grid = tensor.new(3, height * ymaps + padding,
                       width * xmaps + padding).fill_(pad_value)
     k = 0
