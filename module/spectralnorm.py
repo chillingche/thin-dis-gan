@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torch.nn.utils.spectral_norm as sn
 
 
 class SNConv2d(nn.Conv2d):
@@ -27,6 +26,7 @@ class SNConv2d(nn.Conv2d):
         self.n_power_iterations = n_power_iterations
         super(SNConv2d, self).__init__(
             in_channels, out_channels, kernel_size, stride, padding, bias=bias)
+        nn.init.xavier_normal_(self.weight.data)
         if not self.is_params_inited():
             self.init_params()
 
@@ -101,6 +101,7 @@ class SNLinear(nn.Linear):
                 % n_power_iterations)
         self.n_power_iterations = n_power_iterations
         super(SNLinear, self).__init__(in_features, out_features, bias=bias)
+        nn.init.xavier_normal_(self.weight.data)
         if not self.is_params_inited():
             self.init_params()
 

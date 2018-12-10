@@ -1,3 +1,6 @@
+from datetime import datetime
+
+
 def str2bool(v):
     return v.lower() in {
         'yes',
@@ -5,3 +8,7 @@ def str2bool(v):
         't',
         '1',
     }
+
+
+def current_str_time():
+    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
