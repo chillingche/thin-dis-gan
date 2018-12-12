@@ -104,7 +104,7 @@ def save_image(tensor,
                normalize=False,
                range=None,
                scale_each=False,
-               pad_value=0):
+               pad_value=1):
     """Save a given Tensor into an image file.
 
     Args:

@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.nn.utils import spectral_norm
 
 
 class SNConv2d(nn.Conv2d):
@@ -51,8 +52,11 @@ class SNConv2d(nn.Conv2d):
         weight = nn.Parameter(weight, requires_grad=True)
         del self._parameters["weight"]
         self.register_parameter("weight_bar", weight)
-        self.register_parameter("weight_u", u)
-        self.register_parameter("weight_v", v)
+        setattr(self, "weight", weight.data)
+        # self.register_parameter("weight_u", u)
+        # self.register_parameter("weight_v", v)
+        self.register_buffer("weight_u", u)
+        self.register_buffer("weight_v", v)
 
     def reshape_weight_to_matrix(self, weight):
         """ Conv2d Weight Shape: (out_c, in_c, k, k), Bias Shape: (out_c)
@@ -72,8 +76,8 @@ class SNConv2d(nn.Conv2d):
                     # Spectral norm of weight equals to `u^T W v`, where `u` and `v`
                     # are the first left and right singular vectors.
                     # This power iteration produces approximations of `u` and `v`.
-                    v.data = _l2normalize(torch.mv(W.t(), u.data))
-                    u.data = _l2normalize(torch.mv(W, v.data))
+                    v.data = _l2normalize(torch.mv(W.t().data, u.data))
+                    u.data = _l2normalize(torch.mv(W.data, v.data))
                 if self.n_power_iterations > 0:
                     u, v = u.clone(), v.clone()
         sigma = torch.dot(u, torch.mv(W, v))
@@ -126,8 +130,11 @@ class SNLinear(nn.Linear):
         weight = nn.Parameter(weight, requires_grad=True)
         del self._parameters["weight"]
         self.register_parameter("weight_bar", weight)
-        self.register_parameter("weight_u", u)
-        self.register_parameter("weight_v", v)
+        setattr(self, "weight", weight.data)
+        # self.register_parameter("weight_u", u)
+        # self.register_parameter("weight_v", v)
+        self.register_buffer("weight_u", u)
+        self.register_buffer("weight_v", v)
 
     def reshape_weight_to_matrix(self, weight):
         """ Linear Weight Shape: (out_c, in_c), Bias Shape: (out_c)
@@ -147,8 +154,8 @@ class SNLinear(nn.Linear):
                     # Spectral norm of weight equals to `u^T W v`, where `u` and `v`
                     # are the first left and right singular vectors.
                     # This power iteration produces approximations of `u` and `v`.
-                    v.data = _l2normalize(torch.mv(W.t(), u.data))
-                    u.data = _l2normalize(torch.mv(W, v.data))
+                    v.data = _l2normalize(torch.mv(W.t().data, u.data))
+                    u.data = _l2normalize(torch.mv(W.data, v.data))
                 if self.n_power_iterations > 0:
                     u, v = u.clone(), v.clone()
         sigma = torch.dot(u, torch.mv(W, v))

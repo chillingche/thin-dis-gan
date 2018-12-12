@@ -6,7 +6,7 @@ from module.spectralnorm import SNConv2d, SNLinear
 
 
 class Generator(nn.Module):
-    nz = 100
+    nz = 128
     ngf = 128
     nc = 3
 

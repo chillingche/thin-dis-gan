@@ -5,6 +5,7 @@ import torch.nn as nn
 import torch.backends.cudnn as cudnn
 import torch.optim as optim
 import torchvision.utils as tvutils
+from torchvision import datasets, transforms
 import thindidata
 import thindiarch as arch
 from sndiscriminator import Discriminator
@@ -17,7 +18,7 @@ parser.add_argument("--root", default=config.ROOT, help="path to dataset")
 parser.add_argument(
     "--batch-size", type=int, default=128, help="input batch size")
 parser.add_argument(
-    "--nz", type=int, default=100, help="size of latent z vector")
+    "--nz", type=int, default=128, help="size of latent z vector")
 parser.add_argument("--ngf", type=int, default=128, help="width of netG")
 parser.add_argument("--ndf", type=int, default=128, help="width of netD")
 parser.add_argument(
@@ -45,65 +46,58 @@ en_cuda = opt.cuda and torch.cuda.is_available()
 dataloader = thindidata.get_dataloader(
     thindidata.Cifar10Data, opt.root, "all", opt.batch_size, num_workers=2)
 device = torch.device("cuda" if en_cuda else "cpu")
+if opt.ngpu == 1:
+    torch.cuda.set_device(1)
 ngpu = opt.ngpu
 netD = Discriminator(ngpu).to(device)
 netG = Generator(ngpu).to(device)
-# netD.apply(utils.weight_init)
-# netG.apply(utils.weight_init)
+
 if opt.netG != "":
     netG.load_state_dict(torch.load(opt.netG))
 if opt.netD != "":
     netD.load_state_dict(torch.load(opt.netD))
-criterion = nn.MSELoss()
 fixed_noise = torch.randn(opt.batch_size, opt.nz, 1, 1, device=device)
-real_label = 1
-fake_label = 0
 
-optimD = optim.Adam(netD.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
+optimD = optim.Adam(netD.parameters(), lr=4 * opt.lr, betas=(opt.beta1, 0.999))
 optimG = optim.Adam(netG.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
 
 for epoch in range(opt.niter):
+    nround = len(dataloader) // 10
     for i, data in enumerate(dataloader, 0):
         image, label = data
-        netD.zero_grad()
         real = image.to(device)
         batch_size = real.size(0)
-        label = torch.full((batch_size, ), real_label, device=device)
-        output = netD(real)
+        z = torch.randn(batch_size, opt.nz, 1, 1, device=device)
 
-        # errD_real = 0.5*criterion(output, label)
+        optimD.zero_grad()
+        output = netD(real)
         errD_real = arch.HingeAdvLoss.get_d_real_loss(output)
-        errD_real.backward()
         D_x = output.mean().item()
 
-        noise = torch.randn(batch_size, opt.nz, 1, 1, device=device)
-        fake = netG(noise)
-        label.fill_(fake_label)
+        fake = netG(z)
         output = netD(fake.detach())
-        # errD_fake = 0.5*criterion(output, label)
         errD_fake = arch.HingeAdvLoss.get_d_fake_loss(output)
-        errD_fake.backward()
         D_G_z1 = output.mean().item()
         errD = errD_real + errD_fake
+        errD.backward()
         optimD.step()
 
-        netG.zero_grad()
-        label.fill_(real_label)
+        optimG.zero_grad()
         output = netD(fake)
-        # errG = 0.5*criterion(output, label)
         errG = arch.HingeAdvLoss.get_g_loss(output)
         errG.backward()
         D_G_z2 = output.mean().item()
         optimG.step()
 
-        print(
-            '%s [%d/%d][%d/%d] Loss_D: %.4f Loss_G: %.4f D(x): %.4f D(G(z)): %.4f / %.4f'
-            % (utils.current_str_time(), epoch, opt.niter, i, len(dataloader),
-               errD.item(), errG.item(), D_x, D_G_z1, D_G_z2))
-    tvutils.save_image(
-        real, '%s/real_samples.png' % opt.eval_d, normalize=True)
+        if i % nround == 0:
+            print(
+                '%s [%d/%d][%d/%d] Loss_D: %.4f Loss_G: %.4f D(x): %.4f D(G(z)): %.4f / %.4f'
+                % (utils.current_str_time(), epoch, opt.niter, i,
+                   len(dataloader), errD.item(), errG.item(), D_x, D_G_z1,
+                   D_G_z2))
+    utils.save_image(real, '%s/real_samples.png' % opt.eval_d, normalize=True)
     fake = netG(fixed_noise)
-    tvutils.save_image(
+    utils.save_image(
         fake.detach(),
         '%s/fake_samples_epoch_%03d.png' % (opt.eval_d, epoch),
         normalize=True)

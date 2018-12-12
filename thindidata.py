@@ -22,8 +22,9 @@ class Cifar10Data(torchdata.Dataset):
     test_list = [
         ['test_batch', '40351d587109b95175f43aff81a1287e'],
     ]
-    mean = [0.4913997551666284, 0.48215855929893703, 0.4465309133731618]
-    std = [0.24703225141799082, 0.24348516474564, 0.26158783926049628]
+    # mean = [0.4913997551666284, 0.48215855929893703, 0.4465309133731618]
+    # std = [0.24703225141799082, 0.24348516474564, 0.26158783926049628]
+    mean, std = (0.5, 0.5, 0.5), (0.5, 0.5, 0.5)
 
     def __init__(self, root, datasource="train"):
         self.root = os.path.expanduser(root)
@@ -70,7 +71,8 @@ class Cifar10Data(torchdata.Dataset):
         for data in [train_labels, test_labels]:
             if len(data) != 0:
                 self.labels.extend(data)
-        self.images = np.concatenate(self.images)
+        # self.images = np.concatenate(self.images)
+        self.images = np.vstack(self.images)
         self.images = self.images.reshape((-1, 3, 32, 32))
         self.images = self.images.transpose((0, 2, 3, 1))
 
