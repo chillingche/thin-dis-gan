@@ -10,7 +10,7 @@ def make_grid(tensor,
               normalize=False,
               range=None,
               scale_each=False,
-              pad_value=0):
+              pad_value=1):
     """Make a grid of images.
 
     Args:

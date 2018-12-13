@@ -11,3 +11,6 @@ COELOWTH = 0.5
 
 # gpu
 GPUORDINAL = 1
+
+# tensorboard
+TFLOGDIR = os.path.expanduser("~/tfboardlog/")

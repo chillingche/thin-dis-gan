@@ -6,6 +6,7 @@ import torch.backends.cudnn as cudnn
 import torch.optim as optim
 import torchvision.utils as tvutils
 from torchvision import datasets, transforms
+from tensorboardX import SummaryWriter
 import thindidata
 import thindiarch as arch
 from sndiscriminator import Discriminator
@@ -41,6 +42,7 @@ try:
 except OSError:
     pass
 
+browserwriter = SummaryWriter(config.TFLOGDIR)
 cudnn.benchmark = True
 en_cuda = opt.cuda and torch.cuda.is_available()
 dataloader = thindidata.get_dataloader(
@@ -61,45 +63,56 @@ fixed_noise = torch.randn(opt.batch_size, opt.nz, 1, 1, device=device)
 optimD = optim.Adam(netD.parameters(), lr=4 * opt.lr, betas=(opt.beta1, 0.999))
 optimG = optim.Adam(netG.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
 
-for epoch in range(opt.niter):
-    nround = len(dataloader) // 10
-    for i, data in enumerate(dataloader, 0):
-        image, label = data
-        real = image.to(device)
-        batch_size = real.size(0)
-        z = torch.randn(batch_size, opt.nz, 1, 1, device=device)
+nround = 100
+data_iter = iter(dataloader)
+for i in range(opt.niter):
+    image, label = next(data_iter)
+    real = image.to(device)
+    batch_size = real.size(0)
+    z = torch.randn(batch_size, opt.nz, 1, 1, device=device)
 
-        optimD.zero_grad()
-        output = netD(real)
-        errD_real = arch.HingeAdvLoss.get_d_real_loss(output)
-        D_x = output.mean().item()
+    optimD.zero_grad()
+    output = netD(real)
+    errD_real = arch.HingeAdvLoss.get_d_real_loss(output)
+    D_x = output.mean().item()
 
-        fake = netG(z)
-        output = netD(fake.detach())
-        errD_fake = arch.HingeAdvLoss.get_d_fake_loss(output)
-        D_G_z1 = output.mean().item()
-        errD = errD_real + errD_fake
-        errD.backward()
-        optimD.step()
+    fake = netG(z)
+    output = netD(fake.detach())
+    errD_fake = arch.HingeAdvLoss.get_d_fake_loss(output)
+    D_G_z1 = output.mean().item()
+    errD = errD_real + errD_fake
+    errD.backward()
+    optimD.step()
 
-        optimG.zero_grad()
-        output = netD(fake)
-        errG = arch.HingeAdvLoss.get_g_loss(output)
-        errG.backward()
-        D_G_z2 = output.mean().item()
-        optimG.step()
+    optimG.zero_grad()
+    output = netD(fake)
+    errG = arch.HingeAdvLoss.get_g_loss(output)
+    errG.backward()
+    D_G_z2 = output.mean().item()
+    optimG.step()
 
-        if i % nround == 0:
-            print(
-                '%s [%d/%d][%d/%d] Loss_D: %.4f Loss_G: %.4f D(x): %.4f D(G(z)): %.4f / %.4f'
-                % (utils.current_str_time(), epoch, opt.niter, i,
-                   len(dataloader), errD.item(), errG.item(), D_x, D_G_z1,
-                   D_G_z2))
-    utils.save_image(real, '%s/real_samples.png' % opt.eval_d, normalize=True)
-    fake = netG(fixed_noise)
-    utils.save_image(
-        fake.detach(),
-        '%s/fake_samples_epoch_%03d.png' % (opt.eval_d, epoch),
-        normalize=True)
-    # torch.save(netG.state_dict(), '%s/netG_epoch_%d.pth' % (opt.ckpt_d, epoch))
-    # torch.save(netD.state_dict(), '%s/netD_epoch_%d.pth' % (opt.ckpt_d, epoch))
+    if i % nround == 0:
+        print(
+            '%s [%d/%d] Loss_D: %.4f Loss_G: %.4f D(x): %.4f D(G(z)): %.4f / %.4f'
+            % (utils.current_str_time(), i, opt.niter, errD.item(),
+               errG.item(), D_x, D_G_z1, D_G_z2))
+        browserwriter.add_scalars("OUT/LOSS", {
+            "D_loss": errD.item(),
+            "G_loss": errG.item()
+        }, i)
+        browserwriter.add_scalars("OUT/OUTPUT", {
+            "D_x": D_x,
+            "D_G_z1": D_G_z1,
+            "D_G_z2": D_G_z2
+        }, i)
+        fake = netG(fixed_noise)
+        utils.save_image(
+            fake.detach(),
+            '%s/fake_samples_iter_%06d.png' % (opt.eval_d, i),
+            normalize=True)
+        browserwriter.add_image("FAKE",
+                                utils.make_grid(fake.detach(), normalize=True),
+                                i)
+browserwriter.close()
+# torch.save(netG.state_dict(), '%s/netG_epoch_%d.pth' % (opt.ckpt_d, epoch))
+# torch.save(netD.state_dict(), '%s/netD_epoch_%d.pth' % (opt.ckpt_d, epoch))
