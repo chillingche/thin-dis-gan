@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 import torch.backends.cudnn as cudnn
 import torch.optim as optim
+from torch.optim.lr_scheduler import ExponentialLR
 import torchvision.utils as tvutils
 from torchvision import datasets, transforms
 from tensorboardX import SummaryWriter
@@ -62,9 +63,13 @@ fixed_noise = torch.randn(opt.batch_size, opt.nz, 1, 1, device=device)
 
 optimD = optim.Adam(netD.parameters(), lr=4 * opt.lr, betas=(opt.beta1, 0.999))
 optimG = optim.Adam(netG.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
+# lr decay
+schedulerD = ExponentialLR(optimD, gamma=0.99)
+schedulerG = ExponentialLR(optimG, gamma=0.99)
 
 nround = 100
 data_iter = iter(dataloader)
+iter_len = len(data_iter) - 1
 for i in range(opt.niter):
     image, label = next(data_iter)
     real = image.to(device)
@@ -90,6 +95,11 @@ for i in range(opt.niter):
     errG.backward()
     D_G_z2 = output.mean().item()
     optimG.step()
+
+    if (i - iter_len) >= 0 and (i - iter_len) % (iter_len + 1) == 0:
+        data_iter = iter(dataloader)
+        schedulerD.step()
+        schedulerG.step()
 
     if i % nround == 0:
         print(
