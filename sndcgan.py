@@ -68,10 +68,10 @@ schedulerD = ExponentialLR(optimD, gamma=0.99)
 schedulerG = ExponentialLR(optimG, gamma=0.99)
 
 nround = 100
-data_iter = iter(dataloader)
-iter_len = len(data_iter) - 1
+batch_iter = iter(dataloader)
+iter_len = len(batch_iter) - 1
 for i in range(opt.niter):
-    image, label = next(data_iter)
+    image, label = next(batch_iter)
     real = image.to(device)
     batch_size = real.size(0)
     z = torch.randn(batch_size, opt.nz, 1, 1, device=device)
@@ -97,7 +97,7 @@ for i in range(opt.niter):
     optimG.step()
 
     if (i - iter_len) >= 0 and (i - iter_len) % (iter_len + 1) == 0:
-        data_iter = iter(dataloader)
+        batch_iter = iter(dataloader)
         schedulerD.step()
         schedulerG.step()
 
