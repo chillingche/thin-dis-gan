@@ -1,5 +1,6 @@
 # coding: utf-8
 import torch
+import cv2
 import math
 irange = range
 
@@ -124,3 +125,11 @@ def save_image(tensor,
     ndarr = grid.mul(255).clamp(0, 255).byte().permute(1, 2, 0).cpu().numpy()
     im = Image.fromarray(ndarr)
     im.save(filename)
+
+
+def rgb2bgr(cv_img):
+    return cv2.cvtColor(cv_img, cv2.COLOR_RGB2BGR)
+
+
+def bgr2rgb(cv_img):
+    return cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)
