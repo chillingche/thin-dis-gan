@@ -41,7 +41,8 @@ try:
     os.makedirs(opt.ckpt_d)
     os.makedirs(opt.eval_d)
 except OSError:
-    pass
+    if not (os.path.exists(opt.ckpt_d) and os.path.exists(opt.eval_d)):
+        raise OSError("Failed to make ckpt and eval directories")
 
 browserwriter = SummaryWriter(config.TFLOGDIR)
 cudnn.benchmark = True
@@ -67,10 +68,13 @@ optimG = optim.Adam(netG.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
 schedulerD = ExponentialLR(optimD, gamma=0.99)
 schedulerG = ExponentialLR(optimG, gamma=0.99)
 
-nround = 100
+log_interval = 100
 batch_iter = iter(dataloader)
-iter_len = len(batch_iter) - 1
 for i in range(opt.niter):
+    if utils.is_new_epoch_began(i, dataloader):
+        batch_iter = iter(dataloader)
+        schedulerD.step()
+        schedulerG.step()
     image, label = next(batch_iter)
     real = image.to(device)
     batch_size = real.size(0)
@@ -96,12 +100,7 @@ for i in range(opt.niter):
     D_G_z2 = output.mean().item()
     optimG.step()
 
-    if (i - iter_len) >= 0 and (i - iter_len) % (iter_len + 1) == 0:
-        batch_iter = iter(dataloader)
-        schedulerD.step()
-        schedulerG.step()
-
-    if i % nround == 0:
+    if i % log_interval == 0:
         print(
             '%s [%d/%d] Loss_D: %.4f Loss_G: %.4f D(x): %.4f D(G(z)): %.4f / %.4f'
             % (utils.current_str_time(), i, opt.niter, errD.item(),

@@ -41,3 +41,12 @@ def weight_init(m):
     #         elif isinstance(m, nn.Linear):
     #             init_normal(m.weight, 0, 0.01)
     #             init_constant(m.bias, 0)
+
+
+def is_new_epoch_began(current_iter, dataloader):
+    nbatch = len(dataloader)
+    if current_iter < 0:
+        raise ValueError("{} should be non-negative.".format(current_iter))
+    if current_iter % nbatch == 0:
+        return True
+    return False
