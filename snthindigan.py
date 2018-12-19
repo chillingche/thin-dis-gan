@@ -4,7 +4,8 @@ import torch
 import torch.nn as nn
 import torch.backends.cudnn as cudnn
 import torch.optim as optim
-# import torchvision.utils as tvutils
+from torch.optim.lr_scheduler import ExponentialLR
+from tensorboardX import SummaryWriter
 import thindidata
 from sngenerator import SKetchGenerator, PhotoGenerator
 from sndiscriminator import SketchDiscriminator, PhotoDiscriminator
@@ -39,16 +40,18 @@ try:
     os.makedirs(opt.ckpt_d)
     os.makedirs(opt.eval_d)
 except OSError:
-    pass
+    if not (os.path.exists(opt.ckpt_d) and os.path.exists(opt.eval_d)):
+        raise OSError("Failed to make ckpt and eval directories")
 
+browserwriter = SummaryWriter(config.TFLOGDIR)
 cudnn.benchmark = True
 en_cuda = opt.cuda and torch.cuda.is_available()
 dataloader = thindidata.get_dataloader(
     thindidata.ThindiCifar10Data,
     opt.root,
-    "all",
+    "train",
     opt.batch_size,
-    num_workers=16)
+    num_workers=8)
 
 device = torch.device("cuda" if en_cuda else "cpu")
 if opt.ngpu == 1 and int(torch.cuda.device_count()) > 1:
@@ -67,7 +70,6 @@ if opt.netG != "":
     netSG.load_state_dict(torch.load(opt.netG))
 if opt.netD != "":
     netSD.load_state_dict(torch.load(opt.netD))
-# criterion = nn.MSELoss()
 fixed_noise = torch.randn(opt.batch_size, opt.nz, 1, 1, device=device)
 real_label = 1
 fake_label = 0
@@ -84,78 +86,93 @@ for param in netPG.parameters():
     params.append(param)
 optimPG = optim.Adam(params, lr=opt.lr, betas=(opt.beta1, 0.999))
 
-for epoch in range(opt.niter):
-    for i, data in enumerate(dataloader, 0):
-        image, sketch, label = data
-        netSD.zero_grad()
-        real_sk = sketch.to(device)
-        batch_size = real_sk.size(0)
-        # label = torch.full((batch_size, ), real_label, device=device)
-        output = netSD(real_sk)
+# lr decay
+schedulerSD = ExponentialLR(optimSD, gamma=0.99)
+schedulerSG = ExponentialLR(optimSG, gamma=0.99)
+schedulerPD = ExponentialLR(optimPD, gamma=0.99)
+schedulerPG = ExponentialLR(optimPG, gamma=0.99)
 
-        # errD_real = 0.5*criterion(output, label)
-        errSD_real = HingeAdvLoss.get_d_real_loss(output)
-        errSD_real.backward()
-        # SD_x = output.mean().item()
+log_interval = 100
+batch_iter = iter(dataloader)
 
-        netPD.zero_grad()
-        real_ph = image.to(device)
-        output = netPD(real_ph)
-        errD_real = HingeAdvLoss.get_d_real_loss(output)
-        errD_real.backward()
-        D_x = output.mean().item()
+for i in range(opt.niter):
+    if utils.is_new_epoch_began(i, dataloader):
+        batch_iter = iter(dataloader)
+        schedulerSD.step()
+        schedulerSG.step()
+        schedulerPD.step()
+        schedulerPG.step()
+    image, sketch, label = next(batch_iter)
+    netSD.zero_grad()
+    real_sk = sketch.to(device)
+    batch_size = real_sk.size(0)
+    output = netSD(real_sk)
+    errSD_real = HingeAdvLoss.get_d_real_loss(output)
+    SD_x = output.mean().item()
 
-        noise = torch.randn(batch_size, opt.nz, 1, 1, device=device)
-        fake_sk = netSG(noise)
-        # label.fill_(fake_label)
-        output = netSD(fake_sk.detach())
-        # errD_fake = 0.5*criterion(output, label)
-        errSD_fake = HingeAdvLoss.get_d_fake_loss(output)
-        errSD_fake.backward()
-        # D_G_z1 = output.mean().item()
-        # errD = errSD_real + errSD_fake
-        optimSD.step()
+    netPD.zero_grad()
+    real_ph = image.to(device)
+    output = netPD(real_ph)
+    errPD_real = HingeAdvLoss.get_d_real_loss(output)
+    PD_x = output.mean().item()
 
-        fake_ph = netPG(fake_sk, noise)
-        output = netPD(fake_ph.detach())
-        errD_fake = HingeAdvLoss.get_d_fake_loss(output)
-        errD_fake.backward()
-        D_G_z1 = output.mean().item()
-        errD = errD_real + errD_fake
-        optimPD.step()
+    noise = torch.randn(batch_size, opt.nz, 1, 1, device=device)
+    fake_sk = netSG(noise)
+    output = netSD(fake_sk.detach())
+    errSD_fake = HingeAdvLoss.get_d_fake_loss(output)
+    errSD = errSD_real + errSD_fake
+    errSD.backward()
+    optimSD.step()
 
-        netSG.zero_grad()
-        # label.fill_(real_label)
-        output = netSD(fake_sk)
-        # errG = 0.5*criterion(output, label)
-        errSG = HingeAdvLoss.get_g_loss(output)
-        errSG.backward(retain_graph=True)
-        # D_G_z2 = output.mean().item()
-        optimSG.step()
+    fake_ph = netPG(fake_sk, noise)
+    output = netPD(fake_ph.detach())
+    errPD_fake = HingeAdvLoss.get_d_fake_loss(output)
+    errPD = errPD_real + errPD_fake
+    errPD.backward()
+    optimPD.step()
 
-        netPG.zero_grad()
-        output = netPD(fake_ph)
-        errG = HingeAdvLoss.get_g_loss(output)
-        errG.backward()
-        D_G_z2 = output.mean().item()
-        optimPG.step()
+    netSG.zero_grad()
+    output = netSD(fake_sk)
+    errSG = HingeAdvLoss.get_g_loss(output)
+    errSG.backward(retain_graph=True)
+    optimSG.step()
+    SD_z = output.mean().item()
 
+    netPG.zero_grad()
+    output = netPD(fake_ph)
+    errPG = HingeAdvLoss.get_g_loss(output)
+    errPG.backward()
+    optimPG.step()
+    PD_z = output.mean().item()
+
+    if i % log_interval == 0:
         print(
-            '[%d/%d][%d/%d] Loss_D: %.4f Loss_G: %.4f D(x): %.4f D(G(z)): %.4f / %.4f'
-            % (epoch, opt.niter, i, len(dataloader), errD.item(), errSG.item(),
-               D_x, D_G_z1, D_G_z2))
-    tvutils.save_image(
-        real_ph, '%s/real_samples.png' % opt.eval_d, normalize=True)
-    with torch.no_grad():
-        fake_sk = netSG(fixed_noise)
-        fake = netPG(fake_sk, fixed_noise)
-        tvutils.save_image(
-            fake_sk.detach(),
-            '%s/fake_sk_epoch_%03d.png' % (opt.eval_d, epoch),
-            normalize=False)
-        tvutils.save_image(
-            fake.detach(),
-            '%s/fake_samples_epoch_%03d.png' % (opt.eval_d, epoch),
-            normalize=True)
-    # torch.save(netSG.state_dict(), '%s/netG_epoch_%d.pth' % (opt.ckpt_d, epoch))
-    # torch.save(netSD.state_dict(), '%s/netD_epoch_%d.pth' % (opt.ckpt_d, epoch))
+            '%s [%d/%d] errSD: %.4f errSG: %.4f errPD: %.4f errPG: %.4f SD(x): %.4f SD(SG(z)): %.4f PD(x): %.4f PD(PG(z)): %.4f'
+            % (utils.current_str_time(), i, opt.niter, errSD.item(),
+               errSG.item(), errPD.item(), errPG.item(), SD_x, SD_z, PD_x,
+               PD_z))
+        with torch.no_grad():
+            fake_sk = netSG(fixed_noise)
+            fake = netPG(fake_sk, fixed_noise)
+            browserwriter.add_scalars(
+                "OUT/LOSS", {
+                    "errSD": errSD.item(),
+                    "errSG": errSG.item(),
+                    "errPD": errPD.item(),
+                    "errPG": errPG.item()
+                }, i)
+            browserwriter.add_scalars("OUT/D_OUT", {
+                "SD_x": SD_x,
+                "SD_z": SD_z,
+                "PD_x": PD_x,
+                "PD_z": PD_z
+            }, i)
+            browserwriter.add_image(
+                "G_OUT/fake_sk",
+                tvutils.make_grid(fake_sk.detach(), normalize=False), i)
+            browserwriter.add_image(
+                "G_OUT/fake_ph",
+                tvutils.make_grid(fake.detach(), normalize=True), i)
+browserwriter.close()
+# torch.save(netSG.state_dict(), '%s/netG_epoch_%d.pth' % (opt.ckpt_d, epoch))
+# torch.save(netSD.state_dict(), '%s/netD_epoch_%d.pth' % (opt.ckpt_d, epoch))

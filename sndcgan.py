@@ -49,6 +49,21 @@ cudnn.benchmark = True
 en_cuda = opt.cuda and torch.cuda.is_available()
 dataloader = thindidata.get_dataloader(
     thindidata.Cifar10Data, opt.root, "all", opt.batch_size, num_workers=2)
+# mean = [0.4913997551666284, 0.48215855929893703, 0.4465309133731618]
+# std = [0.24703225141799082, 0.24348516474564, 0.26158783926049628]
+# dataloader = torch.utils.data.DataLoader(
+#     datasets.CIFAR10(
+#         opt.root,
+#         train=True,
+#         download=True,
+#         # transform=transforms.Compose(
+#         #     [transforms.ToTensor(),
+#         #      transforms.Normalize(mean, std)])
+#         transform=transforms.ToTensor()),
+#     batch_size=opt.batch_size,
+#     shuffle=True,
+#     num_workers=2,
+#     pin_memory=True)
 device = torch.device("cuda" if en_cuda else "cpu")
 if opt.ngpu == 1:
     torch.cuda.set_device(1)
@@ -120,7 +135,7 @@ for i in range(opt.niter):
             '%s/fake_samples_iter_%06d.png' % (opt.eval_d, i),
             normalize=True)
         browserwriter.add_image("FAKE",
-                                utils.make_grid(fake.detach(), normalize=True),
+                                utils.make_grid(fake.detach(), normalize=False),
                                 i)
 browserwriter.close()
 # torch.save(netG.state_dict(), '%s/netG_epoch_%d.pth' % (opt.ckpt_d, epoch))
