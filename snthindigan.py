@@ -74,17 +74,20 @@ fixed_noise = torch.randn(opt.batch_size, opt.nz, 1, 1, device=device)
 real_label = 1
 fake_label = 0
 
-optimSD = optim.Adam(
-    netSD.parameters(), lr=4 * opt.lr, betas=(opt.beta1, 0.999))
-optimSG = optim.Adam(netSG.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
-optimPD = optim.Adam(
-    netPD.parameters(), lr=4 * opt.lr, betas=(opt.beta1, 0.999))
+ttur = False
+d_lr, g_lr = opt.lr, opt.lr
+if ttur:
+    d_lr = 4 * opt.lr
+
+optimSD = optim.Adam(netSD.parameters(), lr=d_lr, betas=(opt.beta1, 0.999))
+optimSG = optim.Adam(netSG.parameters(), lr=g_lr, betas=(opt.beta1, 0.999))
+optimPD = optim.Adam(netPD.parameters(), lr=d_lr, betas=(opt.beta1, 0.999))
 params = list()
 for param in netSG.parameters():
     params.append(param)
 for param in netPG.parameters():
     params.append(param)
-optimPG = optim.Adam(params, lr=opt.lr, betas=(opt.beta1, 0.999))
+optimPG = optim.Adam(params, lr=g_lr, betas=(opt.beta1, 0.999))
 
 # lr decay
 schedulerSD = ExponentialLR(optimSD, gamma=0.99)
